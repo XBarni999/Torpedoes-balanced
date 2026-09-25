@@ -56,7 +56,14 @@ namespace Torpedo
 
             // Network spawning may omit an added prefab component on some clients. Ensure
             // the torpedo-only controller exists on the live missile before doing anything.
-            TorpedoRuntimeController.EnsureAndTick(__instance);
+            TorpedoRuntimeController controller = TorpedoRuntimeController.EnsureAndTick(__instance);
+            if (controller != null && controller.HasMissed)
+            {
+                aimPoint = __instance.GlobalPosition() + controller.MissForward * 10000f;
+                aimPoint.y = hoverAltitude;
+                targetVel = Vector3.zero;
+                return true;
+            }
             if (seekerRef(__instance) is OpticalSeekerCruiseMissile seeker)
             {
                 altitudeTargetRef(seeker) = hoverAltitude;

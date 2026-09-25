@@ -13,6 +13,14 @@ namespace Torpedo
         {
             Missile missile = missileRef(__instance);
             if (!TorpedoCombatRules.IsTorpedo(missile)) return true;
+            TorpedoRuntimeController controller = missile.GetComponent<TorpedoRuntimeController>();
+            if (controller != null && controller.HasMissed)
+            {
+                GlobalPosition aim = missile.GlobalPosition() + controller.MissForward * 10000f;
+                aim.y = TorpedoCombatRules.TryGetHoverAltitude(missile, out float alt) ? alt : -1f;
+                missile.SetAimpoint(aim, Vector3.zero);
+                return false;
+            }
             if (targetUnitRef(__instance) != null) return true; 
             GlobalPosition aimPoint = missile.GlobalPosition() + missile.transform.forward * 100000f;
             missile.SetAimpoint(aimPoint, Vector3.zero);

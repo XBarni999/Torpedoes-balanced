@@ -185,7 +185,7 @@ namespace Torpedo
             if (launchBooster != null)
             {
                 Traverse boosterFields = Traverse.Create(launchBooster);
-                boosterFields.Field("thrust").SetValue(boosterFields.Field("thrust").GetValue<float>() * 0.15f);
+                boosterFields.Field("thrust").SetValue(boosterFields.Field("thrust").GetValue<float>() * 0.50f);
             }
             MissileDefinition missileDefinition = UnityEngine.Object.Instantiate(sourceMissileDefinition);
             missileDefinition.name = variant.NewName;

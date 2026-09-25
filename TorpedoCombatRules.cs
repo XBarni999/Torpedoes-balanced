@@ -10,10 +10,12 @@ namespace Torpedo
     {
         internal const float DetectionRange = 7000f;
         private static readonly Dictionary<int, float> AuthorizedGunHits = new Dictionary<int, float>();
+        private static readonly HashSet<int> AuthorizedKills = new HashSet<int>();
         internal static readonly HashSet<Missile> ActiveTorpedoes = new HashSet<Missile>();
         private static readonly Regex CaliberPattern = new Regex(@"(?<!\d)(\d+(?:[\.,]\d+)?)\s*mm", RegexOptions.IgnoreCase);
         private static readonly Regex BareCaliberPattern = new Regex(@"(?<!\d)(\d{2,3})(?!\d)");
         private static readonly Regex InchCaliberPattern = new Regex("(?<!\\d)(\\d+(?:[\\.,]\\d+)?)\\s*(?:in|inch|\")", RegexOptions.IgnoreCase);
+        private static readonly Regex GunKeywordPattern = new Regex(@"\b(cannon|artillery|battery|naval|deck|howitzer|flak|heavy|gun)\b", RegexOptions.IgnoreCase);
 
         internal static bool IsTorpedo(Unit unit)
         {
@@ -45,23 +47,39 @@ namespace Torpedo
         {
             if (missile == null) return false;
             int id = missile.GetInstanceID();
-            float expires;
-            if (!AuthorizedGunHits.TryGetValue(id, out expires)) return false;
+            if (!AuthorizedGunHits.TryGetValue(id, out float expires)) return false;
             AuthorizedGunHits.Remove(id);
             return Time.unscaledTime <= expires;
+        }
+
+        internal static void MarkAuthorizedKill(Missile missile)
+        {
+            if (missile != null) AuthorizedKills.Add(missile.GetInstanceID());
+        }
+
+        internal static bool IsAuthorizedKill(Missile missile)
+        {
+            if (missile == null) return false;
+            return AuthorizedKills.Contains(missile.GetInstanceID());
         }
 
         internal static bool IsGunOver30Mm(WeaponInfo info)
         {
             if (info == null || !info.gun) return false;
+
+            // Direct ballistic thresholds: heavy naval guns and cannons have high damage
+            if (info.pierceDamage >= 25f || info.blastDamage >= 30f) return true;
+
             string text = (info.weaponName ?? string.Empty) + " " +
                           (info.shortName ?? string.Empty) + " " +
                           (info.description ?? string.Empty);
+
+            if (GunKeywordPattern.IsMatch(text)) return true;
+
             Match match = CaliberPattern.Match(text);
-            float caliber;
             if (match.Success && float.TryParse(match.Groups[1].Value.Replace(',', '.'),
                        System.Globalization.NumberStyles.Float,
-                       System.Globalization.CultureInfo.InvariantCulture, out caliber)) return caliber > 30f;
+                       System.Globalization.CultureInfo.InvariantCulture, out float caliber)) return caliber > 30f;
             match = InchCaliberPattern.Match(text);
             if (match.Success && float.TryParse(match.Groups[1].Value.Replace(',', '.'),
                     System.Globalization.NumberStyles.Float,
@@ -134,8 +152,8 @@ namespace Torpedo
         }
     }
 
-    // Torpedoes are valid targets only for direct-fire guns over 30 mm. This both
-    // prevents missile expenditure and makes suitable naval guns strongly prefer them.
+    // Torpedoes are valid targets for direct-fire naval guns. Both secondary AA guns
+    // and large naval guns prioritize them if within range.
     [HarmonyPatch(typeof(Turret), "AssessTargetPriority")]
     internal static class TorpedoTurretPriorityPatch
     {
@@ -162,7 +180,10 @@ namespace Torpedo
                 if (station == null || station.WeaponInfo == null || station.Ammo <= 0 ||
                     !TorpedoCombatRules.IsGunOver30Mm(station.WeaponInfo)) continue;
                 TargetRequirements requirements = station.WeaponInfo.targetRequirements;
-                if (distance < requirements.minRange || distance > Mathf.Min(requirements.maxRange, TorpedoCombatRules.DetectionRange))
+                // Soften minimum range for anti-torpedo defense so large naval guns can engage incoming threats
+                float minRange = Mathf.Min(requirements.minRange, 200f);
+                float maxRange = Mathf.Min(requirements.maxRange, TorpedoCombatRules.DetectionRange);
+                if (distance < minRange || distance > maxRange)
                     continue;
                 selected = station;
                 if (!station.Reloading) break;

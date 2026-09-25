@@ -1,5 +1,6 @@
 using HarmonyLib;
 using UnityEngine;
+
 namespace Torpedo
 {
     [HarmonyPatch(typeof(Missile), "Detonate")]
@@ -9,21 +10,40 @@ namespace Torpedo
         {
             if (!TorpedoCombatRules.IsTorpedo(__instance)) return true;
 
-            // If this is an authorized gun kill or an impact with armor/target, allow detonation
-            if (Missile_TakeDamage_TorpedoPatch.InProgress.Contains(__instance) || hitArmor)
+            // Allow detonation on authorized lethal gun kill
+            if (TorpedoCombatRules.IsAuthorizedKill(__instance) || Missile_TakeDamage_TorpedoPatch.InProgress.Contains(__instance))
             {
+                TorpedoCombatRules.ActiveTorpedoes.Remove(__instance);
                 TorpedoWake.RemoveWake(__instance);
                 return true;
             }
 
-            // If hitting actual solid terrain/seabed (not hitting water surface)
+            // Allow detonation on direct impact with armor/target
+            if (hitArmor)
+            {
+                TorpedoCombatRules.ActiveTorpedoes.Remove(__instance);
+                TorpedoWake.RemoveWake(__instance);
+                return true;
+            }
+
+            // Allow miss self-destruction after swimming 100 meters straight
+            TorpedoRuntimeController controller = __instance.GetComponent<TorpedoRuntimeController>();
+            if (controller != null && controller.IsMissDetonating)
+            {
+                TorpedoCombatRules.ActiveTorpedoes.Remove(__instance);
+                TorpedoWake.RemoveWake(__instance);
+                return true;
+            }
+
+            // Allow detonation if hitting actual solid seabed terrain
             if (hitTerrain && (!TorpedoPhysics.IsOverWater(__instance) || __instance.GlobalPosition().y <= -1f))
             {
+                TorpedoCombatRules.ActiveTorpedoes.Remove(__instance);
                 TorpedoWake.RemoveWake(__instance);
                 return true;
             }
 
-            // Prevent self-destruction from seeker timeouts, proximity near-misses, or low speed
+            // Prevent unwanted self-destruction from seeker timeouts, proximity near-misses, or low speed
             return false;
         }
     }

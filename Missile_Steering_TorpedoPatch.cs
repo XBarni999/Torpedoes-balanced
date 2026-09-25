@@ -7,11 +7,16 @@ namespace Torpedo
     {
         private static bool Prefix(Missile __instance)
         {
-            // VLS missiles launch vertically. The donor guidance tries to swing
-            // immediately toward a sea-level target and spins the torpedo in air.
-            // Normal steering resumes as soon as it enters the water.
-            return !TorpedoCombatRules.IsTorpedo(__instance) ||
-                   TorpedoPhysics.IsUnderWater(__instance);
+            if (!TorpedoCombatRules.IsTorpedo(__instance)) return true;
+            if (TorpedoPhysics.IsUnderWater(__instance)) return true;
+
+            // In the air: during initial 0.35s tube exit, suppress aggressive donor steering.
+            // Afterwards, let steering guide towards the water entry aimpoint with clamped angular velocity.
+            TorpedoRuntimeController controller = __instance.GetComponent<TorpedoRuntimeController>();
+            if (controller != null && controller.ElapsedLifetime < 0.35f)
+                return false;
+
+            return true;
         }
     }
 }
