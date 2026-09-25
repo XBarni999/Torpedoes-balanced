@@ -5,7 +5,7 @@ This is **Torpedo Balanced**, a community modification of the original
 The original mod and its four torpedo variants were created by SonPamungkas;
 XBarni999 maintains only the balance and behavior changes in this build.
 
-Current balanced version: **1.4.9**. See [CHANGELOG.md](CHANGELOG.md).
+Current balanced version: **1.4.10**. See [CHANGELOG.md](CHANGELOG.md).
 
 https://github.com/user-attachments/assets/61b5fd6c-d22f-40bf-add1-6f6740428b9e
 
@@ -33,12 +33,18 @@ Fire it like a normal bomb. It transitions into torpedo mode once it touches the
 
 Speed is deliberately far below the source missile's aerial top speed (see the table below). A brief launch impulse clears the launcher; after burnout gravity pulls the torpedo toward the water. Underwater propulsion then maintains its variant's cruise speed.
 
-| Torpedo | Source | Top speed | Explosive yield |
-|---|---|---|---|
-| SCT-350 'Mako'   | AShM-300 | 359 km/h | 600kg |
-| Type-88 'Lemon' | AGM-99 | 257 km/h | 650kg |
-| HT-200 'Hammerhead' | ALCM-450 | 204 km/h | 1350kg |
-| NT-2 'Megalodon' (20kt) | ALND-4 | 194 km/h | 20kt |
+| Torpedo | Original README speed | Balanced underwater target | Original warhead multiplier | Balanced warhead multiplier |
+|---|---:|---:|---:|---:|
+| SCT-350 'Mako' | 359 km/h | **340 km/h** | 2.00× | 0.3575× |
+| Type-88 'Lemon' | 257 km/h | 306 km/h | 2.50× | 0.1625× |
+| HT-200 'Hammerhead' | 204 km/h | 198 km/h | 3.00× | 0.65× |
+| NT-2 'Megalodon' (20kt) | 194 km/h | 234 km/h | 1.00× | 1.00× |
+
+The original speeds are the values published in SonPamungkas's README; the
+balanced speeds are the current controller targets at default settings. Lemon
+and Megalodon are faster than that original table. The warhead multipliers are
+relative to each vanilla donor missile, so they should not be read as kilograms
+of TNT. Megalodon's nuclear yield remains 20 kt.
 
 ## Requirements
 
@@ -58,10 +64,26 @@ Drop `Torpedo.dll` into your `BepInEx/plugins` folder.
 
 ## Balanced build configuration
 
-This derivative build keeps the original four variants but reduces their speed, explosive power,
-penetration and useful engagement range. It also applies a real launch cone to both
+This derivative build keeps the original four variants but changes their cruise speeds,
+explosive power, penetration, costs, and useful engagement range. It also applies a launch cone to both
 players and `CombatAI`; bots therefore do not select or launch a torpedo outside the
 same range and off-boresight limits seen by the player.
+
+| Variant | Original cost | Balanced cost | Original bonus penetration | Balanced bonus penetration | Balanced max launch range |
+|---|---:|---:|---:|---:|---:|
+| Mako | 12.5 | 18 | 500 | 56.25 | 60 km |
+| Lemon | 10.5 | 14 | 500 | 0 | 35 km |
+| Hammerhead | 12.5 | 30 | 4000 | 225 | 90 km |
+| Megalodon | 12.5 | 80 | 0 | 0 | 120 km |
+
+These bonus penetration values are added to the donor weapon's base value.
+The original mod did not impose these explicit torpedo-specific launch caps.
+The balanced build also gives player and AI launchers the same 35° acquisition
+half-angle by default, adds torpedo detection/combat rules, and uses a short
+0.8-second VLS launch impulse followed by gravity and water-entry propulsion.
+Airborne speed is not artificially capped. Ship launch requires a compatible
+ship loadout such as the original mod's optional Surface Loadout integration;
+this build stabilizes torpedoes launched through those mounts.
 
 After the first launch, edit:
 
@@ -70,7 +92,7 @@ After the first launch, edit:
 ```ini
 [Balance]
 
-# Additional multiplier applied to each variant's balanced base speed.
+# Additional multiplier, relative to 0.85, applied to actual underwater cruise.
 SpeedScale = 0.85
 
 # Additional multiplier for blast damage and the prefab's blast yield.
@@ -79,7 +101,7 @@ WarheadScale = 0.65
 # Multiplier for each variant's bonus armor penetration.
 PenetrationScale = 0.75
 
-# Applied to both TargetRequirements.maxRange and physical motor endurance.
+# Relative to 0.60; applied to launch range and physical motor endurance.
 RangeScale = 0.60
 
 # Maximum launch angle away from the aircraft/launcher nose, in degrees.

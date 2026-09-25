@@ -4,7 +4,7 @@ using BepInEx.Logging;
 using HarmonyLib;
 namespace Torpedo
 {
-    [BepInPlugin("neutral.torpedo", "Torpedo Balanced", "1.4.9")]
+    [BepInPlugin("neutral.torpedo", "Torpedo Balanced", "1.4.10")]
     public class TorpedoPlugin : BaseUnityPlugin
     {
         public static TorpedoPlugin Instance;
@@ -23,7 +23,7 @@ namespace Torpedo
 
             SpeedScale = Config.Bind("Balance", "SpeedScale", 0.85f,
                 new ConfigDescription(
-                    "Additional speed multiplier applied after each torpedo variant's base speed. Requires a restart.",
+                    "Underwater cruise and donor-motor scale, relative to the default 0.85. Requires a restart.",
                     new AcceptableValueRange<float>(0.35f, 1.25f)));
             WarheadScale = Config.Bind("Balance", "WarheadScale", 0.65f,
                 new ConfigDescription(
@@ -35,7 +35,7 @@ namespace Torpedo
                     new AcceptableValueRange<float>(0.1f, 1.5f)));
             RangeScale = Config.Bind("Balance", "RangeScale", 0.60f,
                 new ConfigDescription(
-                    "Multiplier for AI/player launch range and physical motor endurance. Requires a restart.",
+                    "AI/player launch range and physical motor endurance, relative to the default 0.60. Requires a restart.",
                     new AcceptableValueRange<float>(0.2f, 1.25f)));
             AcquisitionHalfAngle = Config.Bind("Balance", "AcquisitionHalfAngle", 35f,
                 new ConfigDescription(

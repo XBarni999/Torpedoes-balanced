@@ -29,7 +29,7 @@ namespace Torpedo
         private static readonly VariantInfo[] Variants = new[]
         {
             new VariantInfo { SourceMissile = "AShM1", NewName = "TorpedoFast",
-                DisplayName = "SCT-350 'Mako'", ShortName = "TORP-FAST", Mass = 300f, Cost = 18f, HoverAltitude = -1f, SpeedMultiplier = 0.10f, CruiseSpeed = 140f, ExplosiveMultiplier = 0.55f, PenetrationBonus = 75f, MaxRange = 60000f,
+                DisplayName = "SCT-350 'Mako'", ShortName = "TORP-FAST", Mass = 300f, Cost = 18f, HoverAltitude = -1f, SpeedMultiplier = 0.10f, CruiseSpeed = 94.4f, ExplosiveMultiplier = 0.55f, PenetrationBonus = 75f, MaxRange = 60000f,
                 Description = "A super-cavitating interceptor engineered for pure kinetic urgency. By generating a localized gas-bubble envelope to negate hydrodynamic drag, the Mako closes the distance to its targets with predatory velocity. It can also be used as a counter-torpedo, but not very effective against its own kind" },
             new VariantInfo { SourceMissile = "AShM2", NewName = "TorpedoLight",
                 DisplayName = "Type-88 'Lemon'", ShortName = "TORP-LIGHT", Mass = 250f, Cost = 14f, HoverAltitude = -1f, SpeedMultiplier = 0.088f, CruiseSpeed = 85f, ExplosiveMultiplier = 0.25f, PenetrationBonus = 0f, MaxRange = 35000f,
@@ -174,7 +174,9 @@ namespace Torpedo
             Missile clonedMissile = missileClone.GetComponent<Missile>();
             float speedMultiplier = variant.SpeedMultiplier * TorpedoPlugin.SpeedScale.Value;
             float sourceMaxRange = Mathf.Max(1f, sourceWeaponInfo.targetRequirements.maxRange);
-            float balancedMaxRange = variant.MaxRange;
+            // Preserve the published default limits while making the config's
+            // RangeScale effective relative to its original 0.60 default.
+            float balancedMaxRange = variant.MaxRange * TorpedoPlugin.RangeScale.Value / 0.60f;
             float physicalRangeScale = balancedMaxRange / sourceMaxRange;
             ApplySpeedMultiplier(clonedMissile, speedMultiplier, physicalRangeScale);
             // The donor VLS booster is sized for an anti-ship missile. Torpedoes
@@ -222,7 +224,9 @@ namespace Torpedo
             blastYieldTraverse.SetValue(blastYieldTraverse.GetValue<float>() * explosiveMultiplier);
             Traverse pierceDamageTraverse = Traverse.Create(clonedMissile).Field("pierceDamage");
             pierceDamageTraverse.SetValue(pierceDamageTraverse.GetValue<float>() + penetrationBonus);
-            float targetCruiseSpeed = variant.CruiseSpeed;
+            // SpeedScale must affect actual underwater propulsion, not only the
+            // cloned donor motor's technical parameters.
+            float targetCruiseSpeed = variant.CruiseSpeed * TorpedoPlugin.SpeedScale.Value / 0.85f;
             CruiseSpeedByName[variant.NewName] = targetCruiseSpeed;
             TorpedoPlugin.ModLogger.LogInfo(
                 $"[Torpedo] {variant.NewName}: speed x{speedMultiplier:0.000} (cruise {targetCruiseSpeed:0.0} m/s), " +

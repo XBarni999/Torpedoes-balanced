@@ -10,12 +10,12 @@ namespace Torpedo
     internal sealed class TorpedoRuntimeController : MonoBehaviour
     {
         private const float BoosterDuration = 0.8f;
-        private const float MaximumAirSpeed = 90f;
         private Missile missile;
         private bool launchMotorStopped;
         private bool enteredWater;
         private float lastPhysicsTick = float.NegativeInfinity;
         private float elapsedLifetime;
+        private float boosterBurnTime;
 
         private void Awake()
         {
@@ -36,12 +36,24 @@ namespace Torpedo
             elapsedLifetime += Time.fixedDeltaTime;
 
             bool underwater = TorpedoPhysics.IsUnderWater(missile);
+            VLSBooster booster = missile.GetComponentInChildren<VLSBooster>();
+            bool boosterAttached = booster != null && missile.boosterIsAttached;
+            if (boosterAttached)
+            {
+                try
+                {
+                    if (Traverse.Create(booster).Field("activated").GetValue<bool>())
+                        boosterBurnTime += Time.fixedDeltaTime;
+                }
+                catch { boosterBurnTime += Time.fixedDeltaTime; }
+            }
             if (underwater && !enteredWater)
             {
                 enteredWater = true;
                 TorpedoPhysics.OnWaterEntry(missile, hoverAltitude: GetHoverAltitude());
             }
-            if (!launchMotorStopped && (underwater || elapsedLifetime >= BoosterDuration))
+            if (!launchMotorStopped && (underwater ||
+                (boosterAttached ? boosterBurnTime >= BoosterDuration : elapsedLifetime >= BoosterDuration)))
                 StopLaunchMotor();
 
             if (missile.rb != null && !missile.rb.isKinematic)
@@ -49,8 +61,10 @@ namespace Torpedo
                 // Vanilla missiles disable gravity. After the short launch impulse,
                 // restore it so aircraft drops and VLS launches enter the sea.
                 missile.rb.useGravity = launchMotorStopped && !underwater;
-                if (!underwater && missile.rb.velocity.magnitude > MaximumAirSpeed)
-                    missile.rb.velocity = missile.rb.velocity.normalized * MaximumAirSpeed;
+                // Ship-launched torpedoes start nose-up. Suppress the donor missile's
+                // aggressive air steering and clear inherited angular motion.
+                if (!underwater && missile.LocalSim)
+                    missile.rb.angularVelocity = Vector3.zero;
             }
 
             if (!TorpedoCombatRules.TryGetHoverAltitude(missile, out float hoverAltitude)) return;
