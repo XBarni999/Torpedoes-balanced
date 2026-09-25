@@ -9,7 +9,7 @@ namespace Torpedo
     // MotorThrust for every vanilla projectile in the game.
     internal sealed class TorpedoRuntimeController : MonoBehaviour
     {
-        private const float ShipBoosterDuration = 2.0f;
+        private const float ShipBoosterDuration = 2.8f;
         private const float AirDropDuration = 0.4f;
         private const float MaximumAirSpeed = 90f;
         private const float MissDetonateDistance = 100f;
@@ -60,7 +60,7 @@ namespace Torpedo
             bool underwater = TorpedoPhysics.IsUnderWater(missile);
             VLSBooster booster = missile.GetComponentInChildren<VLSBooster>();
             bool boosterAttached = booster != null && missile.boosterIsAttached;
-            bool isAirDrop = (missile.owner is Aircraft) || !boosterAttached;
+            bool isAirDrop = (missile.owner is Aircraft);
             float maxBurnTime = isAirDrop ? AirDropDuration : ShipBoosterDuration;
 
             if (boosterAttached)
@@ -87,9 +87,9 @@ namespace Torpedo
 
             if (missile.rb != null && !missile.rb.isKinematic)
             {
-                // Vanilla missiles disable gravity. After the short launch impulse,
-                // restore it so aircraft drops and VLS launches enter the sea.
-                missile.rb.useGravity = launchMotorStopped && !underwater;
+                // Vanilla missiles disable gravity. After the launch impulse (or immediately on air drop),
+                // enable gravity so the torpedo arcs and dives into the sea.
+                missile.rb.useGravity = (launchMotorStopped || isAirDrop) && !underwater;
 
                 if (!underwater)
                 {
@@ -104,8 +104,8 @@ namespace Torpedo
                     {
                         missile.rb.angularVelocity = Vector3.ClampMagnitude(missile.rb.angularVelocity, 2.5f);
 
-                        // On ship VLS launch: after tube exit (0.35s), gently pitch nose forward towards the sea
-                        if (boosterAttached && elapsedLifetime > 0.35f)
+                        // On ship/surface launch: after tube exit (0.25s), pitch nose towards the sea / target
+                        if ((boosterAttached || missile.owner is Ship || missile.owner is GroundVehicle) && elapsedLifetime > 0.25f)
                         {
                             Vector3 forward = missile.transform.forward;
                             if (forward.y > 0.05f) // pointing upward
@@ -113,7 +113,7 @@ namespace Torpedo
                                 Vector3 targetDir = (AimPointRef(missile) - missile.GlobalPosition()).normalized;
                                 targetDir.y = -0.2f; // aim slightly downward towards water surface
                                 targetDir.Normalize();
-                                Vector3 pitchTorque = Vector3.Cross(forward, targetDir) * 12f;
+                                Vector3 pitchTorque = Vector3.Cross(forward, targetDir) * 15f;
                                 missile.rb.AddTorque(pitchTorque, ForceMode.Acceleration);
                             }
                         }

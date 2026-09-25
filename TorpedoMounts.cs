@@ -179,13 +179,12 @@ namespace Torpedo
             float balancedMaxRange = variant.MaxRange * TorpedoPlugin.RangeScale.Value / 0.60f;
             float physicalRangeScale = balancedMaxRange / sourceMaxRange;
             ApplySpeedMultiplier(clonedMissile, speedMultiplier, physicalRangeScale);
-            // The donor VLS booster is sized for an anti-ship missile. Torpedoes
-            // need only enough impulse to clear the launcher before falling.
+            // Keep full booster thrust so vertical launch torpedoes easily clear the ship deck.
             VLSBooster launchBooster = missileClone.GetComponentInChildren<VLSBooster>(true);
             if (launchBooster != null)
             {
                 Traverse boosterFields = Traverse.Create(launchBooster);
-                boosterFields.Field("thrust").SetValue(boosterFields.Field("thrust").GetValue<float>() * 0.50f);
+                boosterFields.Field("thrust").SetValue(boosterFields.Field("thrust").GetValue<float>() * 1.0f);
             }
             MissileDefinition missileDefinition = UnityEngine.Object.Instantiate(sourceMissileDefinition);
             missileDefinition.name = variant.NewName;
@@ -213,10 +212,17 @@ namespace Torpedo
             info.pierceDamage += penetrationBonus;
             TargetRequirements requirements = info.targetRequirements;
             requirements.maxRange = balancedMaxRange;
-            requirements.minRange = 500f;
-            requirements.minAlignment = TorpedoPlugin.AcquisitionHalfAngle.Value;
+            requirements.minRange = 100f;
+            requirements.minAlignment = 180f;
             requirements.lineOfSight = false;
+            requirements.minAltitude = -100f;
+            requirements.maxAltitude = 30f;
+            requirements.maxSpeed = 600f;
+            requirements.minIR = 0f;
+            requirements.minRadar = 0f;
+            requirements.minOwnerSpeed = 0f;
             info.targetRequirements = requirements;
+            info.armorTierEffectiveness = 5f;
             // Force AI interception calculations to recalculate from the balanced prefab speed.
             info.maxSpeed = -1f;
             Traverse.Create(clonedMissile).Field("info").SetValue(info);
@@ -296,9 +302,9 @@ namespace Torpedo
             else if (variantName == "TorpedoLight")
             {
                 roles.antiSurface = 1.0f;
-                roles.antiMissile = 0.55f;
+                roles.antiMissile = 0.85f;
                 roles.antiAir = 0f;
-                info.pK = 0.50f;
+                info.pK = 0.65f;
             }
             else if (variantName == "TorpedoBig")
             {
