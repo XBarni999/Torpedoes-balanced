@@ -1,4 +1,5 @@
 using HarmonyLib;
+
 namespace Torpedo
 {
     [HarmonyPatch(typeof(Unit), "OnDestroy")]
@@ -10,6 +11,7 @@ namespace Torpedo
             if (!TorpedoCombatRules.IsTorpedo(missile)) return;
             TorpedoCombatRules.ActiveTorpedoes.Remove(missile);
             TorpedoWake.RemoveWake(missile);
+            TorpedoReportKilledPatch.Clear(missile.GetInstanceID());
         }
     }
 }

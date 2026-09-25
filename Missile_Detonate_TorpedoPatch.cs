@@ -10,12 +10,18 @@ namespace Torpedo
         {
             if (!TorpedoCombatRules.IsTorpedo(__instance)) return true;
 
-            // Allow detonation on authorized lethal gun kill
+            // Allow detonation on authorized lethal gun kill after neutralizing warhead and motion
             if (TorpedoCombatRules.IsAuthorizedKill(__instance) || Missile_TakeDamage_TorpedoPatch.InProgress.Contains(__instance))
             {
-                TorpedoCombatRules.ActiveTorpedoes.Remove(__instance);
-                TorpedoWake.RemoveWake(__instance);
+                TorpedoCombatRules.NeutralizeDestroyedTorpedo(__instance);
                 return true;
+            }
+
+            // Block detonation if torpedo is already disabled or killed
+            if (__instance.disabled)
+            {
+                TorpedoCombatRules.NeutralizeDestroyedTorpedo(__instance);
+                return false;
             }
 
             // Allow detonation on direct impact with armor/target

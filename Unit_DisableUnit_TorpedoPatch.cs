@@ -1,4 +1,5 @@
 using HarmonyLib;
+
 namespace Torpedo
 {
     [HarmonyPatch(typeof(Unit), "DisableUnit")]
@@ -7,7 +8,9 @@ namespace Torpedo
         public static void Prefix(Unit __instance)
         {
             if (__instance is Missile missile && TorpedoCombatRules.IsTorpedo(missile))
-                TorpedoWake.RemoveWake(missile);
+            {
+                TorpedoCombatRules.NeutralizeDestroyedTorpedo(missile);
+            }
         }
     }
 }

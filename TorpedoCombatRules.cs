@@ -43,14 +43,15 @@ namespace Torpedo
             AuthorizedGunHits[target.GetInstanceID()] = Time.unscaledTime + 3f;
         }
 
-        internal static bool ConsumeAuthorizedGunHit(Missile missile)
+        internal static bool IsAuthorizedGunHit(Missile missile)
         {
             if (missile == null) return false;
             int id = missile.GetInstanceID();
             if (!AuthorizedGunHits.TryGetValue(id, out float expires)) return false;
-            AuthorizedGunHits.Remove(id);
             return Time.unscaledTime <= expires;
         }
+
+        internal static bool ConsumeAuthorizedGunHit(Missile missile) => IsAuthorizedGunHit(missile);
 
         internal static void MarkAuthorizedKill(Missile missile)
         {
@@ -61,6 +62,60 @@ namespace Torpedo
         {
             if (missile == null) return false;
             return AuthorizedKills.Contains(missile.GetInstanceID());
+        }
+
+        internal static void NeutralizeDestroyedTorpedo(Missile missile)
+        {
+            if (missile == null) return;
+            MarkAuthorizedKill(missile);
+            ActiveTorpedoes.Remove(missile);
+            TorpedoWake.RemoveWake(missile);
+
+            // Disarm warhead and clear blast yield so neutralized torpedo cannot damage ships
+            try
+            {
+                Traverse.Create(missile).Field("blastYield").SetValue(0f);
+                object warhead = Traverse.Create(missile).Field("warhead").GetValue();
+                if (warhead != null)
+                {
+                    Traverse.Create(warhead).Field("Armed").SetValue(false);
+                    Traverse.Create(warhead).Field("detonated").SetValue(true);
+                }
+            }
+            catch { }
+
+            // Halt all motion instantly
+            try
+            {
+                if (missile.rb != null)
+                {
+                    missile.rb.velocity = Vector3.zero;
+                    missile.rb.angularVelocity = Vector3.zero;
+                    missile.rb.isKinematic = true;
+                }
+            }
+            catch { }
+
+            // Disable colliders and intangibility to eliminate collision ghosting
+            try
+            {
+                missile.SetTangible(false);
+                foreach (Collider col in missile.GetComponentsInChildren<Collider>())
+                {
+                    col.enabled = false;
+                }
+            }
+            catch { }
+
+            // Hide visual renderers immediately
+            try
+            {
+                foreach (MeshRenderer r in missile.GetComponentsInChildren<MeshRenderer>())
+                {
+                    r.enabled = false;
+                }
+            }
+            catch { }
         }
 
         internal static bool IsGunOver30Mm(WeaponInfo info)
@@ -269,6 +324,28 @@ namespace Torpedo
             if (!TorpedoCombatRules.IsTorpedo(hitUnit)) return true;
             if (!TorpedoCombatRules.IsGunOver30Mm(weaponInfo)) return false;
             TorpedoCombatRules.RegisterDirectGunHit(hitUnit, weaponInfo);
+            return true;
+        }
+    }
+
+    [HarmonyPatch(typeof(Unit), "ReportKilled")]
+    internal static class TorpedoReportKilledPatch
+    {
+        private static readonly HashSet<int> ReportedUnits = new HashSet<int>();
+
+        internal static void Clear(int id) => ReportedUnits.Remove(id);
+
+        private static bool Prefix(Unit __instance)
+        {
+            if (__instance is Missile missile && TorpedoCombatRules.IsTorpedo(missile))
+            {
+                int id = missile.GetInstanceID();
+                if (ReportedUnits.Contains(id))
+                {
+                    return false; // Suppress duplicate kill messages
+                }
+                ReportedUnits.Add(id);
+            }
             return true;
         }
     }

@@ -21,6 +21,8 @@ namespace Torpedo
 
         public static void DetonateAndStop(Missile missile, Vector3 normal, bool hitArmor, bool hitTerrain)
         {
+            if (missile == null) return;
+            if (missile.rb != null && !missile.rb.isKinematic) missile.rb.velocity = Vector3.zero;
             missile.Detonate(normal, hitArmor, hitTerrain);
             if (missile.rb != null && !missile.rb.isKinematic) missile.rb.velocity = Vector3.zero;
         }
@@ -56,6 +58,7 @@ namespace Torpedo
 
         public static void ApplyTorpedoPhysics(Missile missile, float targetGlobalY)
         {
+            if (missile == null || missile.disabled || TorpedoCombatRules.IsAuthorizedKill(missile)) return;
             TorpedoCombatRules.ActiveTorpedoes.Add(missile);
             if (missile.rb == null || missile.rb.isKinematic) return;
 

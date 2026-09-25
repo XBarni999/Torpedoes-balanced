@@ -2,6 +2,13 @@
 
 This build modifies [SonPamungkas's original Torpedo mod](https://github.com/SonPamungkas/torpedo).
 
+## 1.4.12
+
+- **Fix Ghost / Zombie Torpedoes**: Torpedoes destroyed by direct gun hits are now immediately and completely neutralized: forward momentum is zeroed, warhead is defused (`blastYield = 0`), and colliders/renderers are disabled. Dead torpedoes can no longer coast forward into friendly ship hulls or detonate on armor.
+- **UnitPart Damage Routing**: Damage to individual torpedo components (fins, body, nose) is now routed through the main missile health pool instead of letting parts trigger uncoordinated kill messages or leaving the parent missile active.
+- **Kill Feed Duplicate Suppression**: Added duplicate prevention on `ReportKilled` so multiple simultaneous shell or fragment hits on a torpedo will only broadcast a single "torpedo destroyed" message instead of spamming 3+ times.
+- **Close-Range Blast Protection**: Destroying a torpedo at point-blank range no longer triggers full-yield warhead shockwaves against the defending ship.
+
 ## 1.4.11
 
 - **Miss & Overshoot Behavior**: If a torpedo misses/overshoots its target, it no longer does an unrealistic 180-degree turn to re-attack. Instead, it locks heading forward, swims straight for ~100 meters, and safely self-detonates.
