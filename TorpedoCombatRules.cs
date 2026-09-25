@@ -12,10 +12,13 @@ namespace Torpedo
         private static readonly Dictionary<int, float> AuthorizedGunHits = new Dictionary<int, float>();
         private static readonly HashSet<int> AuthorizedKills = new HashSet<int>();
         internal static readonly HashSet<Missile> ActiveTorpedoes = new HashSet<Missile>();
+
+        private static readonly Regex SmallCaliberPattern = new Regex(@"(?<!\d)(?:12|14|20|23|25|27|30)(?:[\.,]\d+)?\s*mm\b", RegexOptions.IgnoreCase);
+        private static readonly Regex SmallArmsKeywordPattern = new Regex(@"\b(rotary|ciws|vulcan|gatling|autocannon|chain\s*gun|machine\s*gun|pdw|rifle)\b", RegexOptions.IgnoreCase);
         private static readonly Regex CaliberPattern = new Regex(@"(?<!\d)(\d+(?:[\.,]\d+)?)\s*mm", RegexOptions.IgnoreCase);
         private static readonly Regex BareCaliberPattern = new Regex(@"(?<!\d)(\d{2,3})(?!\d)");
         private static readonly Regex InchCaliberPattern = new Regex("(?<!\\d)(\\d+(?:[\\.,]\\d+)?)\\s*(?:in|inch|\")", RegexOptions.IgnoreCase);
-        private static readonly Regex GunKeywordPattern = new Regex(@"\b(cannon|artillery|battery|naval|deck|howitzer|flak|heavy|gun)\b", RegexOptions.IgnoreCase);
+        private static readonly Regex HeavyGunKeywordPattern = new Regex(@"\b(artillery|battery|naval|deck|howitzer|heavy)\b", RegexOptions.IgnoreCase);
 
         internal static bool IsTorpedo(Unit unit)
         {
@@ -116,33 +119,63 @@ namespace Torpedo
                 }
             }
             catch { }
+
+            // Cleanly destroy the object immediately so it cannot remain as a ghost
+            try
+            {
+                UnityEngine.Object.Destroy(missile.gameObject, 0.05f);
+            }
+            catch { }
         }
 
         internal static bool IsGunOver30Mm(WeaponInfo info)
         {
             if (info == null || !info.gun) return false;
 
-            // Direct ballistic thresholds: heavy naval guns and cannons have high damage
-            if (info.pierceDamage >= 25f || info.blastDamage >= 30f) return true;
-
             string text = (info.weaponName ?? string.Empty) + " " +
                           (info.shortName ?? string.Empty) + " " +
                           (info.description ?? string.Empty);
 
-            if (GunKeywordPattern.IsMatch(text)) return true;
+            // 1. Immediately reject small-caliber guns and CIWS / rotary / autocannon keywords
+            if (SmallCaliberPattern.IsMatch(text) || SmallArmsKeywordPattern.IsMatch(text))
+                return false;
 
+            // 2. Explicit millimeter caliber check: must be strictly > 35mm (e.g. 76mm, 128mm, 406mm)
             Match match = CaliberPattern.Match(text);
             if (match.Success && float.TryParse(match.Groups[1].Value.Replace(',', '.'),
                        System.Globalization.NumberStyles.Float,
-                       System.Globalization.CultureInfo.InvariantCulture, out float caliber)) return caliber > 30f;
+                       System.Globalization.CultureInfo.InvariantCulture, out float caliber))
+            {
+                return caliber > 35f;
+            }
+
+            // 3. Explicit inch caliber check (e.g. 5 in, 16 inch)
             match = InchCaliberPattern.Match(text);
             if (match.Success && float.TryParse(match.Groups[1].Value.Replace(',', '.'),
                     System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture, out caliber)) return caliber * 25.4f > 30f;
+                    System.Globalization.CultureInfo.InvariantCulture, out caliber))
+            {
+                return caliber * 25.4f > 35f;
+            }
+
+            // 4. Bare caliber digits (e.g. "406", "128")
             match = BareCaliberPattern.Match((info.weaponName ?? string.Empty) + " " + (info.shortName ?? string.Empty));
-            return match.Success && float.TryParse(match.Groups[1].Value,
+            if (match.Success && float.TryParse(match.Groups[1].Value,
                        System.Globalization.NumberStyles.Integer,
-                       System.Globalization.CultureInfo.InvariantCulture, out caliber) && caliber > 30f;
+                       System.Globalization.CultureInfo.InvariantCulture, out caliber))
+            {
+                return caliber > 35f;
+            }
+
+            // 5. Heavy naval gun ballistic threshold: heavy naval shells have high damage
+            if (info.pierceDamage >= 30f || info.blastDamage >= 40f)
+                return true;
+
+            // 6. Heavy naval artillery keywords
+            if (HeavyGunKeywordPattern.IsMatch(text))
+                return true;
+
+            return false;
         }
 
         internal static bool IsWithinTorpedoLaunchRange(WeaponInfo info, Unit owner, Unit target, GlobalPosition aimpoint)
@@ -207,8 +240,8 @@ namespace Torpedo
         }
     }
 
-    // Torpedoes are valid targets for direct-fire naval guns. Both secondary AA guns
-    // and large naval guns prioritize them if within range.
+    // Torpedoes are valid targets for direct-fire naval guns (>35mm).
+    // Secondary AA guns and large naval guns prioritize them if within range.
     [HarmonyPatch(typeof(Turret), "AssessTargetPriority")]
     internal static class TorpedoTurretPriorityPatch
     {
@@ -267,6 +300,18 @@ namespace Torpedo
             return TorpedoCombatRules.IsWithinTorpedoLaunchRange(
                 __instance.WeaponInfo, owner,
                 target, default(GlobalPosition));
+        }
+    }
+
+    [HarmonyPatch(typeof(Gun), "Fire")]
+    internal static class TorpedoGunFireGuardPatch
+    {
+        private static bool Prefix(Gun __instance, Unit target)
+        {
+            if (__instance == null) return true;
+            if (TorpedoCombatRules.IsTorpedo(target) && !TorpedoCombatRules.IsGunOver30Mm(__instance.info))
+                return false;
+            return true;
         }
     }
 

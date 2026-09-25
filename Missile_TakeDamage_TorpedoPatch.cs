@@ -31,18 +31,17 @@ namespace Torpedo
             if (!TorpedoCombatRules.IsAuthorizedGunHit(__instance))
                 return false;
 
-            // Suppress all blast, fire, and impact damage
-            blastDamage = 0f;
+            // Suppress secondary fire and impact damage
             fireDamage = 0f;
             impactDamage = 0f;
 
-            // Scale down bullet damage so it requires multiple direct hits to destroy
-            pierceDamage *= 0.5f;
-
-            // If this direct kinetic hit is lethal, mark as authorized kill and neutralize immediately
+            // Direct hits from heavy naval guns (128mm, 406mm) deal full ballistic damage
             ArmorProperties armor = ArmorPropertiesRef(__instance);
             float effectivePierce = Mathf.Max(pierceDamage - armor.pierceArmor, 0f) / Mathf.Max(armor.pierceTolerance, 0.1f);
-            if (HitpointsRef(__instance) - effectivePierce <= 0f)
+            float effectiveBlast = Mathf.Max(blastDamage - armor.blastArmor, 0f) / Mathf.Max(armor.blastTolerance, 0.1f);
+            float totalDamage = effectivePierce + effectiveBlast * 0.5f;
+
+            if (HitpointsRef(__instance) - totalDamage <= 0f)
             {
                 TorpedoCombatRules.NeutralizeDestroyedTorpedo(__instance);
             }
