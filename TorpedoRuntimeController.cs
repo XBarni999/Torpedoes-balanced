@@ -9,7 +9,7 @@ namespace Torpedo
     // MotorThrust for every vanilla projectile in the game.
     internal sealed class TorpedoRuntimeController : MonoBehaviour
     {
-        private const float BoosterDuration = 0.8f;
+        private const float BoosterDuration = 1.5f;
         private const float MissDetonateDistance = 100f;
 
         private static readonly AccessTools.FieldRef<Missile, GlobalPosition> AimPointRef =

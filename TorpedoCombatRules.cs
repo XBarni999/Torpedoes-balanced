@@ -463,7 +463,8 @@ namespace Torpedo
                     if (dist <= effectiveMax)
                     {
                         float opp = weaponStation.WeaponInfo.effectiveness.antiSurface * Mathf.Clamp01(1f - (dist / effectiveMax)) * 2.5f;
-                        float threat = Mathf.Max(__result.threat, 1f);
+                        float baseThreat = analyzer is Ship ? 4f : 1f;
+                        float threat = Mathf.Max(__result.threat, baseThreat);
                         __result = new OpportunityThreat(Mathf.Max(__result.opportunity, opp), threat);
                     }
                 }
@@ -589,7 +590,7 @@ namespace Torpedo
                 {
                     var list = new List<object>();
                     foreach (object item in salvoTargets) list.Add(item);
-                    list.Sort((a, b) => ((float)GetScoreMethod.Invoke(a, null)).CompareTo((float)GetScoreMethod.Invoke(b, null)));
+                    list.Sort((a, b) => ((float)GetScoreMethod.Invoke(b, null)).CompareTo((float)GetScoreMethod.Invoke(a, null)));
                     salvoTargets.Clear();
                     foreach (object item in list) salvoTargets.Add(item);
                 }
