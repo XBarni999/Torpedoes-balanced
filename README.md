@@ -5,7 +5,7 @@ This is **Torpedo Balanced**, a community modification of the original
 The original mod and its four torpedo variants were created by SonPamungkas;
 XBarni999 maintains only the balance and behavior changes in this build.
 
-Current balanced version: **1.4.13**. See [CHANGELOG.md](CHANGELOG.md).
+Current balanced version: **1.4.14**. See [CHANGELOG.md](CHANGELOG.md).
 
 https://github.com/user-attachments/assets/61b5fd6c-d22f-40bf-add1-6f6740428b9e
 
@@ -13,7 +13,7 @@ Adds four torpedo variants to Nuclear Option (cloned from vanilla anti-ship and 
 
 ## What it adds
 
-### **SCT-350 'Mako'** — Fast, super-cavitating interceptor. For both anti-ship and counter-torpedo.
+### **SCT-350 'Mako'** — Fast, super-cavitating anti-ship torpedo.
 <img width="1671" height="1080" alt="Torp1" src="https://github.com/user-attachments/assets/8dfadfc8-dae0-4ef2-96fc-949d820743b0" />
 
 ### **Type-88 'Lemon'** — Light, compact, cheap, agile, and deceptively lethal, Ideal choice for saturation or ambush.
@@ -80,8 +80,7 @@ These bonus penetration values are added to the donor weapon's base value.
 The original mod did not impose these explicit torpedo-specific launch caps.
 The balanced build also gives player and AI launchers the same 35° acquisition
 half-angle by default and adds torpedo detection/combat rules. Ships fire these
-torpedoes only at tracked ships; Mako and Lemon can also intercept hostile
-torpedoes. Buildings, land vehicles and point-only orders are rejected for ship
+torpedoes only at tracked ships. Buildings, land vehicles and point-only orders are rejected for ship
 launches. Ship launch uses a 0.8-second VLS booster, then gravity and
 water-entry propulsion. Donor steering stays off above water so angled Lemon
 launchers do not spin the torpedo. Airborne speed is not artificially capped.

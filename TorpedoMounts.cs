@@ -295,14 +295,14 @@ namespace Torpedo
             if (variantName == "TorpedoFast")
             {
                 roles.antiSurface = 0.85f;
-                roles.antiMissile = 1.0f;
+                roles.antiMissile = 0f;
                 roles.antiAir = 0f;
                 info.pK = 0.72f;
             }
             else if (variantName == "TorpedoLight")
             {
                 roles.antiSurface = 1.0f;
-                roles.antiMissile = 0.85f;
+                roles.antiMissile = 0f;
                 roles.antiAir = 0f;
                 info.pK = 0.65f;
             }

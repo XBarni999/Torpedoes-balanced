@@ -2,6 +2,12 @@
 
 This build modifies [SonPamungkas's original Torpedo mod](https://github.com/SonPamungkas/torpedo).
 
+## 1.4.14
+
+- Remove the global FireControl target-assessment replacement that bypassed native datalink and salvo selection.
+- Stop adding artificial ship-target and missile-intercept threat scores in CombatAI; retain only the torpedo-specific rejection of non-ship targets.
+- Remove Mako/Lemon anti-missile roles so torpedo launchers cannot use missiles to engage ordinary gun shells. Native gun defenses remain available.
+
 ## 1.4.13
 
 - Ship-launched torpedoes require a tracked ship target, except Mako/Lemon counter-torpedo shots at hostile torpedoes. Reject buildings, land vehicles, and point-only fire orders in both AI target assessment and the final launch guards.

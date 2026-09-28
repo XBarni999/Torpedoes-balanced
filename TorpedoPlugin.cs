@@ -4,7 +4,7 @@ using BepInEx.Logging;
 using HarmonyLib;
 namespace Torpedo
 {
-    [BepInPlugin("neutral.torpedo", "Torpedo Balanced", "1.4.13")]
+    [BepInPlugin("neutral.torpedo", "Torpedo Balanced", "1.4.14")]
     public class TorpedoPlugin : BaseUnityPlugin
     {
         public static TorpedoPlugin Instance;

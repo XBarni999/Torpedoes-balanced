@@ -181,11 +181,8 @@ namespace Torpedo
 
         internal static bool IsCounterTorpedo(WeaponInfo info)
         {
-            if (info == null) return false;
-            if (TorpedoMounts_Patch.IsBalancedTorpedoInfo(info))
-            {
-                return info.effectiveness.antiMissile > 0f;
-            }
+            // Missile-defense scoring also selects ordinary shells. Leave
+            // torpedo interception to the ship's native gun defenses.
             return false;
         }
 
@@ -205,10 +202,9 @@ namespace Torpedo
         internal static bool IsValidShipTorpedoTarget(WeaponInfo info, Unit owner, Unit target)
         {
             if (!(owner is Ship) || !TorpedoMounts_Patch.IsBalancedTorpedoInfo(info)) return true;
-            // A ship must have an actual naval target. Keep the Mako/Lemon
-            // counter-torpedo role, but reject buildings, land vehicles and
-            // point-only fire missions at every launch path.
-            return target is Ship || (IsTorpedo(target) && IsCounterTorpedo(info));
+            // A ship must have an actual naval target. Reject buildings, land
+            // vehicles, missiles, shells and point-only fire missions.
+            return target is Ship;
         }
     }
 
@@ -426,187 +422,11 @@ namespace Torpedo
             if (weaponStation == null || weaponStation.WeaponInfo == null || trackingInfo == null) return;
             if (!trackingInfo.TryGetUnit(out Unit target) || target == null || target.disabled) return;
 
-            bool isTargetTorpedo = TorpedoCombatRules.IsTorpedo(target);
-            bool isOurTorpedo = TorpedoMounts_Patch.IsBalancedTorpedoInfo(weaponStation.WeaponInfo);
-
-            if (isOurTorpedo && !TorpedoCombatRules.IsValidShipTorpedoTarget(weaponStation.WeaponInfo, analyzer, target))
-            {
+            // Keep vanilla scoring and its tracking requirements. Only remove
+            // invalid torpedo targets; do not manufacture a high-priority threat.
+            if (TorpedoMounts_Patch.IsBalancedTorpedoInfo(weaponStation.WeaponInfo) &&
+                (!(target is Ship) || !TorpedoCombatRules.IsValidShipTorpedoTarget(weaponStation.WeaponInfo, analyzer, target)))
                 __result = default;
-                return;
-            }
-
-            if (isTargetTorpedo)
-            {
-                // Counter-torpedo defense: allow Lemon and Mako to intercept incoming hostile torpedoes
-                if (isOurTorpedo && TorpedoCombatRules.IsCounterTorpedo(weaponStation.WeaponInfo))
-                {
-                    if (analyzer != null && target.NetworkHQ != null && target.NetworkHQ != analyzer.NetworkHQ)
-                    {
-                        float dist = targetDistance >= 0f ? targetDistance : FastMath.Distance(analyzer.GlobalPosition(), trackingInfo.GetPosition());
-                        float maxRange = weaponStation.WeaponInfo.targetRequirements.maxRange;
-                        if (dist <= maxRange)
-                        {
-                            float opp = weaponStation.WeaponInfo.effectiveness.antiMissile * Mathf.Clamp01(1f - (dist / maxRange));
-                            float threat = 8f; // Urgent defense priority for ships
-                            __result = new OpportunityThreat(Mathf.Max(__result.opportunity, opp), Mathf.Max(__result.threat, threat));
-                        }
-                    }
-                }
-            }
-            else if (isOurTorpedo && target is Ship)
-            {
-                // Surface attack: ensure capital ships and aircraft engage hostile ships with torpedoes
-                if (analyzer != null && target.NetworkHQ != null && target.NetworkHQ != analyzer.NetworkHQ)
-                {
-                    float dist = targetDistance >= 0f ? targetDistance : FastMath.Distance(analyzer.GlobalPosition(), trackingInfo.GetPosition());
-                    float effectiveMax = weaponStation.WeaponInfo.targetRequirements.maxRange * maxRangeMultiplier;
-                    if (dist <= effectiveMax)
-                    {
-                        float opp = weaponStation.WeaponInfo.effectiveness.antiSurface * Mathf.Clamp01(1f - (dist / effectiveMax)) * 2.5f;
-                        float baseThreat = analyzer is Ship ? 4f : 1f;
-                        float threat = Mathf.Max(__result.threat, baseThreat);
-                        __result = new OpportunityThreat(Mathf.Max(__result.opportunity, opp), threat);
-                    }
-                }
-            }
-        }
-    }
-
-    [HarmonyPatch(typeof(FireControl), "HQTargetAssessment")]
-    internal static class FireControlHQTargetAssessmentPatch
-    {
-        private static readonly AccessTools.FieldRef<FireControl, Unit> AttachedUnitRef =
-            AccessTools.FieldRefAccess<FireControl, Unit>("attachedUnit");
-        private static readonly AccessTools.FieldRef<FireControl, List<WeaponStation>> StationsRef =
-            AccessTools.FieldRefAccess<FireControl, List<WeaponStation>>("subscribedWeaponStations");
-        private static readonly AccessTools.FieldRef<FireControl, List<TrackingInfo>> AllTargetsRef =
-            AccessTools.FieldRefAccess<FireControl, List<TrackingInfo>>("allTargets");
-        private static readonly AccessTools.FieldRef<FireControl, float> MaxRangeRef =
-            AccessTools.FieldRefAccess<FireControl, float>("maxRange");
-        private static readonly AccessTools.FieldRef<FireControl, System.Collections.IList> SalvoTargetsRef =
-            AccessTools.FieldRefAccess<FireControl, System.Collections.IList>("salvoTargets");
-        private static readonly AccessTools.FieldRef<FireControl, bool> PlanningSalvoRef =
-            AccessTools.FieldRefAccess<FireControl, bool>("planningSalvo");
-
-        private static readonly MethodInfo SalvoListContainsTargetMethod =
-            AccessTools.Method(typeof(FireControl), "SalvoListContainsTarget", new[] { typeof(TrackingInfo) });
-        private static readonly MethodInfo TargetHasInboundMissilesMethod =
-            AccessTools.Method(typeof(FireControl), "TargetHasInboundMissiles", new[] { typeof(Unit) });
-        private static readonly MethodInfo PlanSalvoMethod =
-            AccessTools.Method(typeof(FireControl), "PlanSalvo");
-
-        private static readonly Type TargetType = AccessTools.Inner(typeof(FireControl), "FireControlTarget");
-        private static readonly ConstructorInfo TargetCtor = TargetType != null
-            ? AccessTools.Constructor(TargetType, new[] { typeof(OpportunityThreat), typeof(TrackingInfo), typeof(WeaponStation) })
-            : null;
-        private static readonly MethodInfo GetScoreMethod = TargetType != null
-            ? AccessTools.Method(TargetType, "GetCombinedScore")
-            : null;
-
-        private static bool Prefix(FireControl __instance)
-        {
-            if (__instance == null) return true;
-            try
-            {
-                Unit unit = AttachedUnitRef(__instance);
-                if (unit == null || unit.disabled || unit.NetworkHQ == null) return true;
-                List<WeaponStation> stations = StationsRef(__instance);
-                if (stations == null || stations.Count == 0) return true;
-
-                // Synchronize WeaponInfo and update maximum range across all subscribed stations
-                float currentMaxRange = 0f;
-                foreach (WeaponStation ws in stations)
-                {
-                    if (ws == null) continue;
-                    if (ws.Weapons != null && ws.Weapons.Count > 0 && ws.Weapons[0] != null && ws.WeaponInfo != ws.Weapons[0].info)
-                    {
-                        ws.WeaponInfo = ws.Weapons[0].info;
-                        ws.TypeLookup?.Clear();
-                    }
-                    if (ws.WeaponInfo != null && ws.WeaponInfo.targetRequirements.maxRange > currentMaxRange)
-                    {
-                        currentMaxRange = ws.WeaponInfo.targetRequirements.maxRange;
-                    }
-                }
-                if (currentMaxRange > 0f)
-                {
-                    MaxRangeRef(__instance) = currentMaxRange;
-                }
-
-                if (TargetCtor == null || SalvoListContainsTargetMethod == null || TargetHasInboundMissilesMethod == null || PlanSalvoMethod == null)
-                    return true;
-
-                List<TrackingInfo> allTargets = AllTargetsRef(__instance);
-                allTargets = unit.NetworkHQ.GetTargetsWithinRange(allTargets, __instance.transform, MaxRangeRef(__instance), false);
-                AllTargetsRef(__instance) = allTargets;
-
-                System.Collections.IList salvoTargets = SalvoTargetsRef(__instance);
-                bool flag = false;
-                object[] containsArgs = new object[1];
-                object[] inboundArgs = new object[1];
-
-                foreach (TrackingInfo allTarget in allTargets)
-                {
-                    if (allTarget == null) continue;
-                    containsArgs[0] = allTarget;
-                    if ((bool)SalvoListContainsTargetMethod.Invoke(__instance, containsArgs))
-                        continue;
-
-                    if (!allTarget.TryGetUnit(out Unit targetUnit) || targetUnit == null || targetUnit.disabled)
-                        continue;
-
-                    inboundArgs[0] = targetUnit;
-                    if ((bool)TargetHasInboundMissilesMethod.Invoke(__instance, inboundArgs))
-                        continue;
-
-                    // Evaluate every subscribed station with ammo to find the best firing solution
-                    WeaponStation bestStation = null;
-                    OpportunityThreat bestOpp = default;
-                    float bestScore = 0f;
-
-                    foreach (WeaponStation ws in stations)
-                    {
-                        if (ws == null || ws.Ammo <= 0 || ws.WeaponInfo == null) continue;
-                        if (!TorpedoCombatRules.IsValidShipTorpedoTarget(ws.WeaponInfo, unit, targetUnit)) continue;
-                        OpportunityThreat opp = CombatAI.AnalyzeTarget(ws, unit, allTarget);
-                        float score = opp.GetCombinedScore();
-                        if (score > bestScore && ws.WeaponInfo.CalcAttacksNeeded(targetUnit) - (float)allTarget.missileAttacks > 0f)
-                        {
-                            bestScore = score;
-                            bestOpp = opp;
-                            bestStation = ws;
-                        }
-                    }
-
-                    if (bestStation != null && bestScore > 0f)
-                    {
-                        object salvoTargetObj = TargetCtor.Invoke(new object[] { bestOpp, allTarget, bestStation });
-                        salvoTargets.Add(salvoTargetObj);
-                        flag = true;
-                    }
-                }
-
-                if (flag && GetScoreMethod != null)
-                {
-                    var list = new List<object>();
-                    foreach (object item in salvoTargets) list.Add(item);
-                    list.Sort((a, b) => ((float)GetScoreMethod.Invoke(b, null)).CompareTo((float)GetScoreMethod.Invoke(a, null)));
-                    salvoTargets.Clear();
-                    foreach (object item in list) salvoTargets.Add(item);
-                }
-
-                if (!PlanningSalvoRef(__instance) && salvoTargets.Count > 0)
-                {
-                    PlanSalvoMethod.Invoke(__instance, null);
-                }
-
-                return false;
-            }
-            catch (Exception ex)
-            {
-                TorpedoPlugin.ModLogger?.LogWarning("[Torpedo] FireControlHQTargetAssessmentPatch error: " + ex);
-                return true;
-            }
         }
     }
 }
