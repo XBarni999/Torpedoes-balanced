@@ -9,9 +9,7 @@ namespace Torpedo
     // MotorThrust for every vanilla projectile in the game.
     internal sealed class TorpedoRuntimeController : MonoBehaviour
     {
-        private const float ShipBoosterDuration = 2.8f;
-        private const float AirDropDuration = 0.4f;
-        private const float MaximumAirSpeed = 90f;
+        private const float BoosterDuration = 0.8f;
         private const float MissDetonateDistance = 100f;
 
         private static readonly AccessTools.FieldRef<Missile, GlobalPosition> AimPointRef =
@@ -61,7 +59,6 @@ namespace Torpedo
             VLSBooster booster = missile.GetComponentInChildren<VLSBooster>();
             bool boosterAttached = booster != null && missile.boosterIsAttached;
             bool isAirDrop = (missile.owner is Aircraft);
-            float maxBurnTime = isAirDrop ? AirDropDuration : ShipBoosterDuration;
 
             if (boosterAttached)
             {
@@ -80,7 +77,7 @@ namespace Torpedo
             }
 
             if (!launchMotorStopped && (underwater ||
-                (boosterAttached ? boosterBurnTime >= maxBurnTime : elapsedLifetime >= maxBurnTime)))
+                (boosterAttached ? boosterBurnTime >= BoosterDuration : elapsedLifetime >= BoosterDuration)))
             {
                 StopLaunchMotor();
             }
@@ -93,31 +90,11 @@ namespace Torpedo
 
                 if (!underwater)
                 {
-                    // Enforce maximum air speed to prevent Mach/supersonic acceleration on air drops
-                    if (missile.rb.velocity.magnitude > MaximumAirSpeed)
-                    {
-                        missile.rb.velocity = missile.rb.velocity.normalized * MaximumAirSpeed;
-                    }
-
-                    // Clamp airborne angular velocity to prevent tumbling while permitting controlled pitch-over
+                    // Keep the angle supplied by the launcher while the booster burns.
+                    // The donor steering and the old pitch-assist fought each other on
+                    // inclined Lemon mounts and made the torpedo tumble in the air.
                     if (missile.LocalSim)
-                    {
-                        missile.rb.angularVelocity = Vector3.ClampMagnitude(missile.rb.angularVelocity, 2.5f);
-
-                        // On ship/surface launch: after tube exit (0.25s), pitch nose towards the sea / target
-                        if ((boosterAttached || missile.owner is Ship || missile.owner is GroundVehicle) && elapsedLifetime > 0.25f)
-                        {
-                            Vector3 forward = missile.transform.forward;
-                            if (forward.y > 0.05f) // pointing upward
-                            {
-                                Vector3 targetDir = (AimPointRef(missile) - missile.GlobalPosition()).normalized;
-                                targetDir.y = -0.2f; // aim slightly downward towards water surface
-                                targetDir.Normalize();
-                                Vector3 pitchTorque = Vector3.Cross(forward, targetDir) * 15f;
-                                missile.rb.AddTorque(pitchTorque, ForceMode.Acceleration);
-                            }
-                        }
-                    }
+                        missile.rb.angularVelocity = Vector3.zero;
                 }
             }
 

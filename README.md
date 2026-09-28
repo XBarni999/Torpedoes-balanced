@@ -5,7 +5,7 @@ This is **Torpedo Balanced**, a community modification of the original
 The original mod and its four torpedo variants were created by SonPamungkas;
 XBarni999 maintains only the balance and behavior changes in this build.
 
-Current balanced version: **1.4.10**. See [CHANGELOG.md](CHANGELOG.md).
+Current balanced version: **1.4.13**. See [CHANGELOG.md](CHANGELOG.md).
 
 https://github.com/user-attachments/assets/61b5fd6c-d22f-40bf-add1-6f6740428b9e
 
@@ -79,11 +79,14 @@ same range and off-boresight limits seen by the player.
 These bonus penetration values are added to the donor weapon's base value.
 The original mod did not impose these explicit torpedo-specific launch caps.
 The balanced build also gives player and AI launchers the same 35° acquisition
-half-angle by default, adds torpedo detection/combat rules, and uses a short
-0.8-second VLS launch impulse followed by gravity and water-entry propulsion.
-Airborne speed is not artificially capped. Ship launch requires a compatible
-ship loadout such as the original mod's optional Surface Loadout integration;
-this build stabilizes torpedoes launched through those mounts.
+half-angle by default and adds torpedo detection/combat rules. Ships fire these
+torpedoes only at tracked ships; Mako and Lemon can also intercept hostile
+torpedoes. Buildings, land vehicles and point-only orders are rejected for ship
+launches. Ship launch uses a 0.8-second VLS booster, then gravity and
+water-entry propulsion. Donor steering stays off above water so angled Lemon
+launchers do not spin the torpedo. Airborne speed is not artificially capped.
+Ship launch requires a compatible loadout such
+as the original mod's optional Surface Loadout integration.
 
 After the first launch, edit:
 

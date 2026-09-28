@@ -2,6 +2,12 @@
 
 This build modifies [SonPamungkas's original Torpedo mod](https://github.com/SonPamungkas/torpedo).
 
+## 1.4.13
+
+- Ship-launched torpedoes require a tracked ship target, except Mako/Lemon counter-torpedo shots at hostile torpedoes. Reject buildings, land vehicles, and point-only fire orders in both AI target assessment and the final launch guards.
+- Keep the launcher's initial attitude during flight above water. Disable donor missile steering and conflicting pitch-assist that spun Lemon torpedoes from angled ship mounts; underwater steering resumes on water entry.
+- Restore the requested 0.8-second booster burn and remove the reintroduced 90 m/s airborne speed cap.
+
 ## 1.4.12
 
 - **Fix Ghost / Zombie Torpedoes**: Torpedoes destroyed by direct gun hits are now immediately and completely neutralized: forward momentum is zeroed, warhead is defused (`blastYield = 0`), and colliders/renderers are disabled. Dead torpedoes can no longer coast forward into friendly ship hulls or detonate on armor.

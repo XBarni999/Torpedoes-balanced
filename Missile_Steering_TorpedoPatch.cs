@@ -8,15 +8,10 @@ namespace Torpedo
         private static bool Prefix(Missile __instance)
         {
             if (!TorpedoCombatRules.IsTorpedo(__instance)) return true;
-            if (TorpedoPhysics.IsUnderWater(__instance)) return true;
-
-            // In the air: during initial 0.35s tube exit, suppress aggressive donor steering.
-            // Afterwards, let steering guide towards the water entry aimpoint with clamped angular velocity.
-            TorpedoRuntimeController controller = __instance.GetComponent<TorpedoRuntimeController>();
-            if (controller != null && controller.ElapsedLifetime < 0.35f)
-                return false;
-
-            return true;
+            // The donor missile steers toward a sea-level aimpoint while the booster
+            // still pushes along an angled Lemon launcher. Those competing rotations
+            // make it tumble. Keep its launch attitude until water entry.
+            return TorpedoPhysics.IsUnderWater(__instance);
         }
     }
 }

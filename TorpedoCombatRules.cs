@@ -192,6 +192,7 @@ namespace Torpedo
         internal static bool IsWithinTorpedoLaunchRange(WeaponInfo info, Unit owner, Unit target, GlobalPosition aimpoint)
         {
             if (!TorpedoMounts_Patch.IsBalancedTorpedoInfo(info) || owner == null) return true;
+            if (!IsValidShipTorpedoTarget(info, owner, target)) return false;
             float maxRange = info.targetRequirements.maxRange;
             if (maxRange <= 0f) return true;
             if (target != null)
@@ -199,6 +200,15 @@ namespace Torpedo
             if (aimpoint != default(GlobalPosition))
                 return FastMath.InRange(owner.GlobalPosition(), aimpoint, maxRange);
             return true;
+        }
+
+        internal static bool IsValidShipTorpedoTarget(WeaponInfo info, Unit owner, Unit target)
+        {
+            if (!(owner is Ship) || !TorpedoMounts_Patch.IsBalancedTorpedoInfo(info)) return true;
+            // A ship must have an actual naval target. Keep the Mako/Lemon
+            // counter-torpedo role, but reject buildings, land vehicles and
+            // point-only fire missions at every launch path.
+            return target is Ship || (IsTorpedo(target) && IsCounterTorpedo(info));
         }
     }
 
@@ -419,6 +429,12 @@ namespace Torpedo
             bool isTargetTorpedo = TorpedoCombatRules.IsTorpedo(target);
             bool isOurTorpedo = TorpedoMounts_Patch.IsBalancedTorpedoInfo(weaponStation.WeaponInfo);
 
+            if (isOurTorpedo && !TorpedoCombatRules.IsValidShipTorpedoTarget(weaponStation.WeaponInfo, analyzer, target))
+            {
+                __result = default;
+                return;
+            }
+
             if (isTargetTorpedo)
             {
                 // Counter-torpedo defense: allow Lemon and Mako to intercept incoming hostile torpedoes
@@ -550,6 +566,7 @@ namespace Torpedo
                     foreach (WeaponStation ws in stations)
                     {
                         if (ws == null || ws.Ammo <= 0 || ws.WeaponInfo == null) continue;
+                        if (!TorpedoCombatRules.IsValidShipTorpedoTarget(ws.WeaponInfo, unit, targetUnit)) continue;
                         OpportunityThreat opp = CombatAI.AnalyzeTarget(ws, unit, allTarget);
                         float score = opp.GetCombinedScore();
                         if (score > bestScore && ws.WeaponInfo.CalcAttacksNeeded(targetUnit) - (float)allTarget.missileAttacks > 0f)
