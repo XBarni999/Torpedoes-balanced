@@ -9,7 +9,7 @@ namespace Torpedo
     // MotorThrust for every vanilla projectile in the game.
     internal sealed class TorpedoRuntimeController : MonoBehaviour
     {
-        private const float BoosterDuration = 1.5f;
+        private const float BoosterDuration = 0.8f;
         private const float MissDetonateDistance = 100f;
 
         private static readonly AccessTools.FieldRef<Missile, GlobalPosition> AimPointRef =
@@ -90,11 +90,17 @@ namespace Torpedo
 
                 if (!underwater)
                 {
-                    // Keep the angle supplied by the launcher while the booster burns.
-                    // The donor steering and the old pitch-assist fought each other on
-                    // inclined Lemon mounts and made the torpedo tumble in the air.
                     if (missile.LocalSim)
-                        missile.rb.angularVelocity = Vector3.zero;
+                    {
+                        if (!isAirDrop)
+                        {
+                            GuideBoosterTowardsTarget();
+                        }
+                        else
+                        {
+                            missile.rb.angularVelocity = Vector3.zero;
+                        }
+                    }
                 }
             }
 
@@ -181,6 +187,59 @@ namespace Torpedo
             MissForward = forward;
             distanceTraveledSinceMiss = 0f;
             TorpedoPlugin.ModLogger?.LogInfo($"[Torpedo] {missile.name} missed target. Swimming straight 100m before self-detonating.");
+        }
+
+        private void GuideBoosterTowardsTarget()
+        {
+            if (missile == null || missile.rb == null) return;
+
+            Vector3 targetDir = Vector3.zero;
+            Unit target = TargetRef(missile);
+            MissileSeeker seeker = SeekerRef(missile);
+            if (target == null && seeker != null)
+            {
+                try { target = SeekerTargetUnitRef(seeker); }
+                catch { }
+            }
+
+            if (target != null && !target.disabled)
+            {
+                targetDir = target.transform.position - missile.transform.position;
+            }
+            else
+            {
+                GlobalPosition gp = AimPointRef(missile);
+                if (gp != default(GlobalPosition))
+                {
+                    targetDir = gp - missile.GlobalPosition();
+                }
+            }
+
+            // Target bearing on water
+            Vector3 horizDir = new Vector3(targetDir.x, 0f, targetDir.z);
+            if (horizDir.sqrMagnitude > 4f)
+            {
+                horizDir.Normalize();
+
+                // Pitch angle: when high above water or starting descent, smoothly pitch down 15-25 degrees towards water entry
+                float alt = (float)missile.GlobalPosition().y;
+                float pitchAngle = alt > 50f ? 20f : 12f;
+                Vector3 desiredForward = Vector3.RotateTowards(horizDir, Vector3.down, pitchAngle * Mathf.Deg2Rad, 0f);
+
+                // Smoothly turn towards target bearing (75 deg/s)
+                Quaternion targetRot = Quaternion.LookRotation(desiredForward, Vector3.up);
+                Quaternion nextRot = Quaternion.RotateTowards(missile.transform.rotation, targetRot, 75f * Time.fixedDeltaTime);
+                missile.rb.MoveRotation(nextRot);
+
+                // Align velocity vector with forward direction so it does not drift awkwardly sideways in air
+                float currentSpeed = missile.rb.velocity.magnitude;
+                if (currentSpeed > 1f)
+                {
+                    missile.rb.velocity = Vector3.RotateTowards(missile.rb.velocity, missile.transform.forward * currentSpeed, 6f * Time.fixedDeltaTime, 0f);
+                }
+            }
+
+            missile.rb.angularVelocity = Vector3.zero;
         }
 
         private float GetHoverAltitude()
