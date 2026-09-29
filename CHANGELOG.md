@@ -2,6 +2,11 @@
 
 This build modifies [SonPamungkas's original Torpedo mod](https://github.com/SonPamungkas/torpedo).
 
+## 1.4.18
+
+- Smooth airborne booster guidance for ship-launched torpedoes (VLS & slanted mounts like Type-88 Lemon): steers toward target bearing in the air and pitches smoothly toward water entry.
+- Velocity vector alignment in flight to prevent tumbling or drifting awkwardly sideways.
+
 ## 1.4.14
 
 - Remove the global FireControl target-assessment replacement that bypassed native datalink and salvo selection.

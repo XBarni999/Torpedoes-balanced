@@ -5,7 +5,7 @@ This is **Torpedo Balanced**, a community modification of the original
 The original mod and its four torpedo variants were created by SonPamungkas;
 XBarni999 maintains only the balance and behavior changes in this build.
 
-Current balanced version: **1.4.15**. See [CHANGELOG.md](CHANGELOG.md).
+Current balanced version: **1.4.18**. See [CHANGELOG.md](CHANGELOG.md).
 
 https://github.com/user-attachments/assets/61b5fd6c-d22f-40bf-add1-6f6740428b9e
 
